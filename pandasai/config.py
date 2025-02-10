@@ -1,51 +1,86 @@
-import json
-from typing import Optional, Union
+import os
+from importlib.util import find_spec
+from typing import Any, Dict, Optional
 
-from . import llm, middlewares, callbacks
-from .helpers.path import find_closest
-from .schemas.df_config import Config
+from pydantic import BaseModel, ConfigDict
+
+from pandasai.helpers.filemanager import DefaultFileManager, FileManager
+from pandasai.llm.base import LLM
 
 
-def load_config(
-    override_config: Optional[Union[Config, dict]] = None,
-):
-    """
-    Load the configuration from the pandasai.json file.
+class Config(BaseModel):
+    save_logs: bool = True
+    verbose: bool = False
+    enable_cache: bool = True
+    max_retries: int = 3
+    llm: Optional[LLM] = None
+    file_manager: FileManager = DefaultFileManager()
 
-    Args:
-        override_config (Optional[Union[Config, dict]], optional): The configuration to
-        override the one in the file. Defaults to None.
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    Returns:
-        dict: The configuration.
-    """
+    @classmethod
+    def from_dict(cls, config: Dict[str, Any]) -> "Config":
+        return cls(**config)
 
-    config = {}
 
-    if override_config is None:
-        override_config = {}
+class ConfigManager:
+    """A singleton class to manage the global configuration."""
 
-    try:
-        with open(find_closest("pandasai.json"), "r") as f:
-            config = json.load(f)
+    _config: Config = Config()
 
-            if config.get("llm") and not override_config.get("llm"):
-                options = config.get("llm_options") or {}
-                config["llm"] = getattr(llm, config["llm"])(**options)
+    @classmethod
+    def set(cls, config_dict: Dict[str, Any]) -> None:
+        """Set the global configuration."""
+        cls._config = Config.from_dict(config_dict)
+        cls.validate_llm()
 
-            if config.get("middlewares") and not override_config.get("middlewares"):
-                config["middlewares"] = [
-                    getattr(middlewares, middleware)()
-                    for middleware in config["middlewares"]
-                ]
+    @classmethod
+    def get(cls) -> Config:
+        """Get the global configuration."""
+        if cls._config is None:
+            cls._config = Config()
 
-            if config.get("callback") and not override_config.get("callback"):
-                config["callback"] = getattr(callbacks, config["callback"])()
-    except Exception:
-        # Ignore the error if the file does not exist, will use the default config
-        pass
+        if cls._config.llm is None and os.environ.get("PANDABI_API_KEY"):
+            from pandasai.llm.bamboo_llm import BambooLLM
 
-    if override_config:
-        config.update(override_config)
+            cls._config.llm = BambooLLM()
 
-    return config
+        return cls._config
+
+    @classmethod
+    def update(cls, config_dict: Dict[str, Any]) -> None:
+        """Update the existing configuration with new values."""
+        current_config = cls._config.model_dump()
+        current_config.update(config_dict)
+        cls._config = Config.from_dict(current_config)
+
+    @classmethod
+    def validate_llm(cls):
+        """
+        Initializes a default LLM if not provided.
+        """
+        if cls._config.llm is None and os.environ.get("PANDABI_API_KEY"):
+            from pandasai.llm.bamboo_llm import BambooLLM
+
+            cls._config.llm = BambooLLM()
+            return
+
+        # Check if pandasai_langchain is installed
+        if find_spec("pandasai_langchain") is not None:
+            from pandasai_langchain.langchain import LangchainLLM, is_langchain_llm
+
+            if is_langchain_llm(cls._config.llm):
+                cls._config.llm = LangchainLLM(cls._config.llm)
+
+
+class APIKeyManager:
+    _api_key: Optional[str] = None
+
+    @classmethod
+    def set(cls, api_key: str):
+        os.environ["PANDABI_API_KEY"] = api_key
+        cls._api_key = api_key
+
+    @classmethod
+    def get(cls) -> Optional[str]:
+        return cls._api_key

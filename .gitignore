@@ -38,3 +38,13 @@ exports/
 
 # vscode
 .vscode
+
+# coverage
+.coverage
+coverage.xml
+
+# pgdata
+pgdata/
+
+# datasets
+datasets/

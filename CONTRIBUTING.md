@@ -1,4 +1,4 @@
-# 🐼 Contributing to PandasAI
+# 🐼 Contributing to PandaAI
 
 Hi there! We're thrilled that you'd like to contribute to this project. Your help is essential for keeping it great.
 
@@ -15,7 +15,6 @@ To make a contribution, follow the following steps:
 
 For more details about pull requests, please read [GitHub's guides](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request).
 
-
 ### 📦 Package manager
 
 We use `poetry` as our package manager. You can install poetry by following the instructions [here](https://python-poetry.org/docs/#installation).
@@ -23,7 +22,7 @@ We use `poetry` as our package manager. You can install poetry by following the 
 Please DO NOT use pip or conda to install the dependencies. Instead, use poetry:
 
 ```bash
-poetry install --all-extras
+poetry install --all-extras --with dev
 ```
 
 ### 📌 Pre-commit
@@ -39,30 +38,37 @@ pre-commit install
 We use `ruff` to lint our code. You can run the linter by running the following command:
 
 ```bash
-ruff pandasai examples
+make format_diff
 ```
 
 Make sure that the linter does not report any errors or warnings before submitting a pull request.
 
-### Code Format with `black`
+### Code Format with `ruff-format`
 
-We use `black` to reformat the code by running the following command:
+We use `ruff` to reformat the code by running the following command:
 
 ```bash
-black pandasai 
+make format
 ```
+
+### Spell check
+
+We usee `codespell` to check the spelling of our code. You can run codespell by running the following command:
+
+```bash
+make spell_fix
+```
+
 
 ### 🧪 Testing
 
 We use `pytest` to test our code. You can run the tests by running the following command:
 
 ```bash
-poetry run pytest
+make tests
 ```
 
 Make sure that all tests pass before submitting a pull request.
-
-
 
 ## 🚀 Release Process
 
